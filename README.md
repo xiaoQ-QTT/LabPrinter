@@ -30,6 +30,29 @@ cd LabPrinter
 # 打开浏览器: http://localhost:5000
 ```
 
+## 🧰 开机自启动（Windows）
+
+Windows 版包含 Word COM 转换与本机打印链路，建议用 **计划任务（登录后启动）** 的方式自启动：
+
+```powershell
+# 首次使用或更新依赖后，建议先确保已安装依赖（包含 waitress）
+pip install -r requirements.txt
+
+# 安装“登录后自启动”计划任务（默认任务名 LabPrinter）
+.\deploy\install_autostart_task.ps1
+
+# 可选：立刻启动一次
+Start-ScheduledTask -TaskName "LabPrinter"
+```
+
+日志：查看 `logs\server_*.log`（stderr）和 `logs\server_*.out.log`（stdout）。
+
+卸载：
+
+```powershell
+.\deploy\uninstall_autostart_task.ps1
+```
+
 ## 📋 系统要求
 
 ### Windows 版本
