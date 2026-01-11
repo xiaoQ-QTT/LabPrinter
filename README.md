@@ -1,9 +1,9 @@
-# 🖨️ LabPrinter - Windows 网络打印系统
+# LabPrinter - Windows / Linux 网络打印系统
 
 > 一个为实验室/办公室设计的 **Web 网络打印解决方案**
 > 用户可以通过局域网浏览器远程上传文档进行打印
 
-**👉 [从这里开始](START_HERE.md)** | **📖 [快速开始](QUICKSTART.md)** | **✅ [项目完成](PROJECT_COMPLETE.md)**
+**📖 [使用手册](MANUAL.md)** | **🏗️ [项目结构](PROJECT_STRUCTURE.md)** | **🐧 [Linux 版说明](labprinter_linux/README.md)**
 
 ## ✨ 核心特性
 
@@ -32,22 +32,23 @@ cd LabPrinter
 
 ## 📋 系统要求
 
+### Windows 版本
 - ✅ Windows 10/11
 - ✅ Python 3.10+
 - ✅ Microsoft Word (用于Word文档转换)
 - ✅ 已配置的打印机
 
+### Linux 版本（Ubuntu 22.04）
+- ✅ Ubuntu 22.04
+- ✅ Python 3 + venv
+- ✅ LibreOffice (用于Word文档转换)
+- ✅ CUPS (lp/lpstat 打印链路)
+
 ## 📚 文档导航
 
-根据您的角色选择对应文档：
-
-| 角色 | 推荐文档 | 耗时 |
-|------|---------|------|
-| **🆕 新手** | [START_HERE](START_HERE.md) | 3分钟 |
-| **⚡ 快速上手** | [QUICKSTART](QUICKSTART.md) | 10分钟 |
-| **👤 日常用户** | [MANUAL](MANUAL.md) | 20分钟 |
-| **👨‍💻 开发者** | [API](API.md) + [TECHNICAL_DESIGN](TECHNICAL_DESIGN.md) | 60分钟 |
-| **✅ 项目总结** | [PROJECT_COMPLETE](PROJECT_COMPLETE.md) | 10分钟 |
+- Windows 使用与配置：`MANUAL.md`
+- 项目目录/模块说明：`PROJECT_STRUCTURE.md`
+- Linux（Ubuntu 22.04）部署与排障：`labprinter_linux/README.md`
 
 ## 🏗️ 系统架构
 
@@ -169,11 +170,58 @@ netsh advfirewall firewall add rule name="LabPrinter" dir=in action=allow protoc
 | 想集成API？ | 查看 API.md | API |
 
 ## 🚀 下一步
+1. 阅读 Windows 使用手册：`MANUAL.md`
+2. 查看项目结构：`PROJECT_STRUCTURE.md`
+3. 部署 Linux 版本：`labprinter_linux/README.md`
 
-1. **[从这里开始](START_HERE.md)** - 3分钟入门指南
-2. **[快速开始](QUICKSTART.md)** - 10分钟部署指南
-3. **[详细手册](MANUAL.md)** - 20分钟掌握全部
-4. **[项目完成](PROJECT_COMPLETE.md)** - 项目总结报告
+## 🐧 Linux 版本（Ubuntu 22.04）
+
+Linux 版本位于 `labprinter_linux/`，与 Windows 版本代码隔离，核心链路为：
+`Word -> LibreOffice(headless) -> PDF -> CUPS(lp) -> Printer`。
+
+推荐安装：
+
+```bash
+cd labprinter_linux
+chmod +x deploy/*.sh
+./deploy/install_ubuntu22.sh
+python run.py
+```
+
+字体与兼容性说明：
+- 可将 Windows 字体文件（`.ttf/.ttc/.otf`）放入 `labprinter_linux/deploy/fonts/`，再运行 `./deploy/install_fonts.sh` 安装到系统。
+- 由于 Word 可能包含专有字体/复杂排版/嵌入对象，即使安装大量字体，Linux 渲染仍可能与 Windows 不一致；建议尽量先导出为 PDF 再打印。
+
+开机自启动（systemd）：
+```bash
+cd labprinter_linux
+./deploy/install_systemd_service.sh
+```
+
+## 📤 推送到 GitHub（Windows）
+
+1) GitHub 创建空仓库（不要勾选 README/.gitignore/license）。
+
+2) 确认 SSH Key 已添加到 GitHub 并测试：
+```powershell
+ssh -T git@github.com
+```
+
+3) 如果 `ssh -T` 正常但 `git push` 报 `Permission denied (publickey)`，执行一次：
+```powershell
+git config --global core.sshCommand '"C:/Program Files/OpenSSH/ssh.exe"'
+```
+
+4) 初始化并推送（新仓库）：
+```powershell
+cd C:\workspace\LabPrinter
+git init
+git add -A
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin git@github.com:<你的用户名>/<仓库名>.git
+git push -u origin main
+```
 
 ## 📦 交付清单
 
@@ -217,6 +265,6 @@ netsh advfirewall firewall add rule name="LabPrinter" dir=in action=allow protoc
 
 **🎉 准备好了？现在就 [开始使用](START_HERE.md)！**
 
-版本: 1.0 Windows | 状态: ✅ 生产就绪 | 许可: MIT
+版本: Windows + Linux | 状态: ✅ 可用 | 许可: MIT
 
 🖨️ **Happy Printing!**
