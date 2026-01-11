@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验室智能打印服务</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖨️</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #2d3748;
+        }
+
+        /* 卡片样式优化 */
+        .main-card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 上传区域样式 */
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 0.75rem;
+            padding: 3rem 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #f8fafc;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background-color: #f0f4ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background-color: #e9ecef;
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(118, 75, 162, 0.2);
+        }
+
+        /* 打印机状态指示器 */
+        .printer-status-badge {
+            font-size: 0.75rem;
+            padding: 0.25em 0.6em;
+            border-radius: 20px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 按钮与表单控件优化 */
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+
+        .btn-gradient:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+        }
+
+        /* 进度条动画 */
+        .progress-bar-animated-custom {
+            background-size: 2rem 2rem;
+            animation: progress-animation 1s linear infinite;
+        }
+
+        @keyframes progress-animation {
+            0% { background-position: 2rem 0; }
+            100% { background-position: 0 0; }
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 576px) {
+            .btn-group-responsive {
+                flex-direction: column;
+            }
+            .btn-group-responsive > .btn {
+                width: 100%;
+                border-radius: 0.375rem !important;
+                margin-bottom: 0.5rem;
+                margin-left: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-7 col-md-10">
+                <div class="text-center text-white mb-5">
+                    <h1 class="fw-bold"><i class="bi bi-printer-fill me-2"></i>实验室打印服务</h1>
+                    <p class="opacity-75">安全 · 快速 · 自助</p>
+                </div>
+
+                <div class="card main-card p-4 p-md-5">
+                    <form id="print-form" enctype="multipart/form-data" novalidate>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">文档上传</label>
+                            
+                            <div class="upload-area text-center" id="drop-zone">
+                                <i class="bi bi-cloud-arrow-up fs-1 text-primary mb-3"></i>
+                                <h5 class="fw-normal">点击或拖拽文件到此处</h5>
+                                <p class="text-muted small mb-0">支持 PDF, DOC, DOCX (最大 50MB)</p>
+                                <input type="file" id="file-input" name="file" accept=".pdf,.doc,.docx" hidden>
+                            </div>
+
+                            <div id="file-info" class="alert alert-light border d-flex align-items-center justify-content-between d-none mt-3 shadow-sm">
+                                <div class="d-flex align-items-center overflow-hidden">
+                                    <div class="bg-primary bg-opacity-10 p-2 rounded me-3 text-primary">
+                                        <i class="bi bi-file-earmark-text-fill fs-4"></i>
+                                    </div>
+                                    <div class="text-truncate">
+                                        <h6 class="mb-0 text-truncate" id="file-name" style="max-width: 250px;">filename.pdf</h6>
+                                        <small class="text-muted" id="file-size">0 KB</small>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close ms-2" aria-label="Remove file" onclick="clearFile()"></button>
+                            </div>
+                        </div>
+
+                        <hr class="my-4 opacity-10">
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold text-secondary mb-0">打印设置</label>
+                                <small class="text-muted" id="last-updated" style="font-size: 0.75rem;"></small>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="bi bi-printer"></i></span>
+                                        <select class="form-select" name="printer" id="printer-select" required>
+                                            <option value="" disabled selected>正在加载打印机...</option>
+                                        </select>
+                                    </div>
+                                    <div id="printer-status-container" class="mt-2"></div>
+                                </div>
+
+                                <div class="col-md-6 col-6">
+                                    <label class="form-label small text-muted">打印份数</label>
+                                    <div class="input-group">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="adjustCopies(-1)">-</button>
+                                        <input type="number" class="form-control text-center" name="copies" id="copies-input" value="1" min="1" max="99" required>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="adjustCopies(1)">+</button>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 col-6">
+                                    <label class="form-label small text-muted">纸张规格</label>
+                                    <select class="form-select" name="paper_size">
+                                        <option value="A4" selected>A4</option>
+                                        <option value="A3">A3</option>
+                                        <option value="Letter">Letter</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">双面模式</label>
+                                    <select class="form-select" name="duplex">
+                                        <option value="one-sided">单面打印</option>
+                                        <option value="two-sided-long-edge" selected>双面 (长边翻转)</option>
+                                        <option value="two-sided-short-edge">双面 (短边翻转)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">色彩模式</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="color" value="color" id="color-color" checked>
+                                        <label class="btn btn-outline-primary" for="color-color"><i class="bi bi-palette-fill"></i> 彩色</label>
+                                        <input type="radio" class="btn-check" name="color" value="grayscale" id="color-gray">
+                                        <label class="btn btn-outline-secondary" for="color-gray"><i class="bi bi-circle-half"></i> 黑白</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">页面范围</label>
+                                    <div class="card bg-light border-0 p-3">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="page_range_type" id="range-all" value="all" checked>
+                                            <label class="form-check-label" for="range-all">全部页面</label>
+                                        </div>
+                                        <div class="form-check d-flex align-items-center">
+                                            <input class="form-check-input" type="radio" name="page_range_type" id="range-custom" value="custom">
+                                            <label class="form-check-label text-nowrap me-2" for="range-custom">指定页面</label>
+                                            <input type="text" class="form-control form-control-sm" name="page_range" id="page-range-input" 
+                                                   placeholder="如: 1, 3, 5-10" disabled pattern="^[\d,\-\s]+$">
+                                        </div>
+                                        <div class="invalid-feedback d-block ps-4" id="range-error" style="display:none !important">
+                                            格式错误，请输入如 "1,3,5-10" 的格式
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-gradient w-100 py-3 rounded-3 fs-5 shadow" id="submit-btn">
+                            <i class="bi bi-printer me-2"></i>立即打印
+                        </button>
+                    </form>
+
+                    <div id="status-card" class="mt-4 d-none">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-bold text-primary" id="status-text">处理中...</span>
+                            <span class="small text-muted" id="status-percent">0%</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated-custom" id="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="text-center mt-3">
+                             <small class="text-muted">请勿关闭浏览器窗口</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center text-white-50 mt-4 small">
+                    &copy; 2026 ACMIS | <a href="#" class="text-white-50 text-decoration-none">遇到问题?</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-info-circle-fill me-2" id="toast-icon"></i>
+                <strong class="me-auto" id="toast-title">提示</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toast-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // DOM 元素引用
+        const els = {
+            dropZone: document.getElementById('drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            form: document.getElementById('print-form'),
+            fileInfo: document.getElementById('file-info'),
+            fileName: document.getElementById('file-name'),
+            fileSize: document.getElementById('file-size'),
+            printerSelect: document.getElementById('printer-select'),
+            printerStatus: document.getElementById('printer-status-container'),
+            statusCard: document.getElementById('status-card'),
+            statusText: document.getElementById('status-text'),
+            statusPercent: document.getElementById('status-percent'),
+            progressBar: document.getElementById('progress-bar'),
+            submitBtn: document.getElementById('submit-btn'),
+            rangeInput: document.getElementById('page-range-input'),
+            rangeError: document.getElementById('range-error'),
+            lastUpdated: document.getElementById('last-updated')
+        };
+
+        let printersData = [];
+        let refreshTimer = null;
+
+        // --- 初始化与工具函数 ---
+        function setRangeErrorVisible(visible) {
+            // range-error 元素带了 Bootstrap 的 d-block（display: block !important）
+            // 直接写 style.display 会被覆盖；这里用 !important 确保可控。
+            els.rangeError.style.setProperty('display', visible ? 'block' : 'none', 'important');
+        }
+
+        // 显示 Toast 通知
+        function showToast(message, type = 'info') {
+            const toastEl = document.getElementById('liveToast');
+            const toast = new bootstrap.Toast(toastEl);
+            const icon = document.getElementById('toast-icon');
+            const title = document.getElementById('toast-title');
+            
+            document.getElementById('toast-body').textContent = message;
+            
+            // 样式配置
+            const config = {
+                success: { color: 'text-success', icon: 'bi-check-circle-fill', title: '成功' },
+                error: { color: 'text-danger', icon: 'bi-x-circle-fill', title: '错误' },
+                warning: { color: 'text-warning', icon: 'bi-exclamation-triangle-fill', title: '警告' },
+                info: { color: 'text-primary', icon: 'bi-info-circle-fill', title: '提示' }
+            };
+            
+            const style = config[type] || config.info;
+            icon.className = `bi me-2 ${style.icon} ${style.color}`;
+            title.className = `me-auto ${style.color}`;
+            
+            toast.show();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function adjustCopies(delta) {
+            const input = document.getElementById('copies-input');
+            let val = parseInt(input.value) || 0;
+            val += delta;
+            if (val < 1) val = 1;
+            if (val > 99) val = 99;
+            input.value = val;
+        }
+
+        // --- 核心逻辑 ---
+
+        // 1. 加载打印机数据
+        async function loadPrinters() {
+            try {
+                const response = await fetch('/printers', { cache: 'no-store' });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+
+                printersData = Array.isArray(data.printers) ? data.printers : [];
+                renderPrinterOptions();
+                updateLastUpdatedTime();
+            } catch (error) {
+                console.error('加载打印机失败:', error);
+                els.printerSelect.innerHTML = '<option disabled>无法加载打印机</option>';
+                els.printerStatus.innerHTML = '<small class="text-muted">打印机列表加载失败，请刷新页面或检查服务端日志</small>';
+            }
+        }
+
+        function renderPrinterOptions() {
+            const currentVal = els.printerSelect.value;
+            // 清空除第一项外的选项 (保留 loading 或 提示)
+            els.printerSelect.innerHTML = ''; 
+
+            if (printersData.length === 0) {
+                const opt = new Option("无可用打印机", "");
+                opt.disabled = true;
+                els.printerSelect.add(opt);
+                els.printerStatus.innerHTML = '<small class="text-muted">未发现可用打印机</small>';
+                return;
+            }
+
+            const defaultPrinter = printersData.find(p => p && p.is_default);
+            const defaultLabel = defaultPrinter ? `系统默认 (${defaultPrinter.name})` : '系统默认';
+            els.printerSelect.add(new Option(defaultLabel, ''));
+
+            printersData.forEach(p => {
+                const label = p.is_default ? `${p.name} (默认)` : p.name;
+                const opt = new Option(label, p.name);
+                els.printerSelect.add(opt);
+            });
+
+            // 如果之前有选中项，尝试恢复
+            if (currentVal && printersData.some(p => p.name === currentVal)) {
+                els.printerSelect.value = currentVal;
+            } else {
+                els.printerSelect.value = '';
+            }
+
+            updatePrinterStatusDisplay();
+        }
+
+        function updatePrinterStatusDisplay() {
+            const selectedName = els.printerSelect.value;
+            const printer = selectedName
+                ? printersData.find(p => p.name === selectedName)
+                : printersData.find(p => p.is_default);
+
+            const statusConfig = {
+                ready: { class: 'bg-success-subtle text-success-emphasis border-success-subtle', icon: 'bi-check-circle' },
+                busy: { class: 'bg-warning-subtle text-warning-emphasis border-warning-subtle', icon: 'bi-hourglass-split' },
+                offline: { class: 'bg-secondary-subtle text-secondary-emphasis border-secondary-subtle', icon: 'bi-slash-circle' },
+                error: { class: 'bg-danger-subtle text-danger-emphasis border-danger-subtle', icon: 'bi-exclamation-octagon' },
+                warning: { class: 'bg-warning-subtle text-warning-emphasis border-warning-subtle', icon: 'bi-exclamation-triangle' }
+            };
+
+            if (!printer) {
+                const conf = statusConfig.warning;
+                els.printerStatus.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="printer-status-badge border ${conf.class}">
+                            <i class="bi ${conf.icon}"></i> 未设置默认打印机，请手动选择
+                        </span>
+                    </div>
+                `;
+                return;
+            }
+
+            const conf = statusConfig[printer.status] || statusConfig.offline;
+            
+            els.printerStatus.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="printer-status-badge border ${conf.class}">
+                        <i class="bi ${conf.icon}"></i> ${printer.status_text}
+                    </span>
+                    ${printer.jobs > 0 ? `<small class="text-muted ms-2"><i class="bi bi-stack"></i> 排队任务: ${printer.jobs}</small>` : ''}
+                </div>
+            `;
+        }
+
+        function updateLastUpdatedTime() {
+            const now = new Date();
+            els.lastUpdated.textContent = `更新于 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // 2. 文件拖拽与选择逻辑
+        function setupFileUpload() {
+            // 点击上传
+            els.dropZone.addEventListener('click', () => els.fileInput.click());
+            els.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+            // 拖拽事件
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                els.dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+            els.dropZone.addEventListener('dragover', () => els.dropZone.classList.add('dragover'));
+            ['dragleave', 'drop'].forEach(evt => {
+                els.dropZone.addEventListener(evt, () => els.dropZone.classList.remove('dragover'));
+            });
+
+            els.dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            const file = files[0];
+            
+            // 简单校验
+            const validTypes = ['.pdf', '.doc', '.docx'];
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            if (!validTypes.includes(ext)) {
+                showToast('不支持的文件格式，请上传 PDF 或 Word 文档', 'error');
+                return;
+            }
+            if (file.size > 50 * 1024 * 1024) { // 50MB
+                showToast('文件过大，请小于 50MB', 'error');
+                return;
+            }
+
+            // 更新 UI
+            els.fileInput.files = els.fileInput.files.length ? els.fileInput.files : createFileList(file); 
+            els.fileName.textContent = file.name;
+            els.fileSize.textContent = formatFileSize(file.size);
+            
+            els.dropZone.classList.add('d-none');
+            els.fileInfo.classList.remove('d-none');
+        }
+
+        // Hack: 为 input[type=file] 赋值 (拖拽场景)
+        function createFileList(file) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            return dt.files;
+        }
+
+        window.clearFile = function() {
+            els.fileInput.value = '';
+            els.fileInfo.classList.add('d-none');
+            els.dropZone.classList.remove('d-none');
+        };
+
+        // 3. 页面范围与表单交互
+        document.querySelectorAll('input[name="page_range_type"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const isCustom = e.target.value === 'custom';
+                els.rangeInput.disabled = !isCustom;
+                if (isCustom) {
+                    els.rangeInput.focus();
+                } else {
+                    els.rangeInput.value = '';
+                    els.rangeInput.classList.remove('is-invalid');
+                    setRangeErrorVisible(false);
+                }
+            });
+        });
+
+        function normalizePageRangeInput(value) {
+            return (value || '')
+                // Remove invisible characters (e.g. zero-width space) that can break validation
+                .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                // Normalize common punctuation from IME/copy-paste
+                .replace(/[，﹐､、;；]/g, ',')
+                // Normalize hyphen/minus variants (IME/Word/Unicode)
+                .replace(/[－‐‑‒–—―−﹣~～〜]/g, '-');
+        }
+
+        function isValidPageRange(value) {
+            const normalized = normalizePageRangeInput(value).replace(/\s+/g, '');
+            if (!normalized) return true;
+            return /^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(normalized);
+        }
+
+        // 实时校验页面范围格式
+        els.rangeInput.addEventListener('input', function() {
+            const original = this.value;
+            const normalized = normalizePageRangeInput(original);
+            if (normalized !== original) {
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = normalized;
+                if (start !== null && end !== null) {
+                    this.setSelectionRange(start, end);
+                }
+            }
+
+            const rangeType = document.querySelector('input[name="page_range_type"]:checked')?.value || 'all';
+            if (rangeType !== 'custom') {
+                this.classList.remove('is-invalid');
+                setRangeErrorVisible(false);
+                return;
+            }
+
+            if (this.value.trim() !== '' && !isValidPageRange(this.value)) {
+                this.classList.add('is-invalid');
+                setRangeErrorVisible(true);
+            } else {
+                this.classList.remove('is-invalid');
+                setRangeErrorVisible(false);
+            }
+        });
+
+        els.printerSelect.addEventListener('change', updatePrinterStatusDisplay);
+
+        // 4. 提交逻辑
+        els.form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // 前端校验
+            if (!els.fileInput.files[0]) {
+                showToast('请先选择要打印的文件', 'warning');
+                return;
+            }
+            const rangeType = document.querySelector('input[name="page_range_type"]:checked').value;
+            if (rangeType === 'custom' && !els.rangeInput.value.trim()) {
+                els.rangeInput.classList.add('is-invalid');
+                showToast('请输入打印页面范围', 'warning');
+                return;
+            }
+            if (rangeType === 'custom') {
+                els.rangeInput.value = normalizePageRangeInput(els.rangeInput.value);
+                if (!isValidPageRange(els.rangeInput.value)) {
+                    els.rangeInput.classList.add('is-invalid');
+                    setRangeErrorVisible(true);
+                    showToast('页面范围格式错误', 'warning');
+                    return;
+                }
+            }
+
+            // 锁定界面
+            setLoadingState(true);
+            
+            const formData = new FormData(els.form);
+
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.error) {
+                    throw new Error(data.error || `HTTP ${res.status}`);
+                }
+
+                startPolling(data.task_id);
+
+            } catch (err) {
+                showToast('上传失败: ' + err.message, 'error');
+                setLoadingState(false);
+            }
+        });
+
+        function setLoadingState(isLoading) {
+            els.submitBtn.disabled = isLoading;
+            els.submitBtn.innerHTML = isLoading ? 
+                '<span class="spinner-border spinner-border-sm me-2"></span>提交中...' : 
+                '<i class="bi bi-printer me-2"></i>立即打印';
+            
+            if (isLoading) {
+                els.statusCard.classList.remove('d-none');
+                // 平滑滚动到底部
+                els.statusCard.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // 5. 轮询状态
+        function startPolling(taskId) {
+            els.statusText.textContent = "正在处理...";
+            els.statusPercent.textContent = "0%";
+
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status/${encodeURIComponent(taskId)}`, { cache: 'no-store' });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || data.error) {
+                        throw new Error(data.error || `HTTP ${res.status}`);
+                    }
+
+                    updateProgressUI(data);
+
+                    if (data.state === 'SUCCESS') {
+                        clearInterval(interval);
+                        showToast('打印任务已成功发送！', 'success');
+                        setTimeout(() => resetAll(), 2000);
+                    } else if (data.state === 'FAILURE') {
+                        clearInterval(interval);
+                        showToast('打印失败: ' + (data.message || ''), 'error');
+                        setLoadingState(false);
+                    }
+                } catch (e) {
+                    clearInterval(interval);
+                    console.error("Polling error", e);
+                    showToast('状态查询失败: ' + e.message, 'error');
+                    setLoadingState(false);
+                }
+            }, 1000);
+        }
+
+        function updateProgressUI(data) {
+            const p = data.progress || 0;
+            els.progressBar.style.width = p + '%';
+            els.statusPercent.textContent = p + '%';
+            els.statusText.textContent = data.message;
+            
+            if (p === 100) {
+                els.progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated-custom');
+                els.progressBar.classList.add('bg-success');
+            }
+        }
+
+        function resetAll() {
+            setLoadingState(false);
+            els.form.reset();
+            clearFile();
+            els.statusCard.classList.add('d-none');
+            els.progressBar.style.width = '0%';
+            els.progressBar.classList.remove('bg-success');
+            els.progressBar.classList.add('progress-bar-striped', 'progress-bar-animated-custom');
+            
+            // 恢复默认选中
+            document.getElementById('range-all').checked = true;
+            els.rangeInput.disabled = true;
+            loadPrinters(); // 刷新打印机状态
+        }
+
+        // --- 启动 ---
+        setupFileUpload();
+        loadPrinters();
+        refreshTimer = setInterval(loadPrinters, 30000); // 30秒刷新一次状态
+
+    </script>
+</body>
+</html>

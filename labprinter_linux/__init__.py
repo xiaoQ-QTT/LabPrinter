@@ -1,0 +1,2 @@
+"""LabPrinter Linux variant package."""
+

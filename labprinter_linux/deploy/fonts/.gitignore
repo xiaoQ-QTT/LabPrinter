@@ -1,0 +1,10 @@
+# 防止把字体文件误提交到仓库（通常包含专有字体许可证限制）
+*.ttf
+*.ttc
+*.otf
+*.otc
+*.woff
+*.woff2
+
+!.gitignore
+!README.md
