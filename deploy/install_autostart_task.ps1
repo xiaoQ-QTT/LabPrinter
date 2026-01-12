@@ -7,16 +7,19 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$startScript = Join-Path $PSScriptRoot 'start_server.ps1'
+$runner = Join-Path $PSScriptRoot 'run_waitress.py'
+$pythonw = Join-Path $repoRoot 'venv\Scripts\pythonw.exe'
 
-if (-not (Test-Path $startScript)) {
-    throw "未找到启动脚本: $startScript"
+if (-not (Test-Path $runner)) {
+    throw "未找到启动脚本: $runner"
+}
+if (-not (Test-Path $pythonw)) {
+    throw "未找到 venv Python: $pythonw （请先运行 .\\deploy\\install.ps1）"
 }
 
-$psExe = (Get-Command powershell.exe).Source
 $action = New-ScheduledTaskAction `
-    -Execute $psExe `
-    -Argument "-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$startScript`"" `
+    -Execute $pythonw `
+    -Argument "`"$runner`"" `
     -WorkingDirectory $repoRoot
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $UserName
 # 不同 Windows/PowerShell 版本支持的 LogonType 枚举不同：
@@ -37,6 +40,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
     -MultipleInstances IgnoreNew `
+    -Hidden `
     -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1)

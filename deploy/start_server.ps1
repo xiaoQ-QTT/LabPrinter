@@ -21,7 +21,9 @@ function Resolve-PythonExe {
     }
 
     $candidates = @(
+        (Join-Path $repoRoot 'venv\Scripts\pythonw.exe'),
         (Join-Path $repoRoot 'venv\Scripts\python.exe'),
+        (Join-Path $repoRoot '.venv\Scripts\pythonw.exe'),
         (Join-Path $repoRoot '.venv\Scripts\python.exe')
     )
 
