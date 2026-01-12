@@ -55,6 +55,11 @@ $task = New-ScheduledTask `
 try {
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($existing) {
+        try {
+            Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
+        } catch {
+            # ignore
+        }
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false | Out-Null
     }
 } catch {
